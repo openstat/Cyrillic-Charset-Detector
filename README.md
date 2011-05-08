@@ -47,7 +47,7 @@ If you have made some changes then run:
 
       $ ant
 
-to check if you have not broken the test or style checks.
+to check that you have not broken the tests an to check the code style.
 
 
 Example of usage
