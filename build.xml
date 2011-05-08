@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+   Copyright (c) 2011 Openstat
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+-->
+
+<project name="CharsetDetector" default="all" basedir=".">
+
+    <property name="project" value="cs-detecting" />
+
+    <property name="output.dir" value="${basedir}/target" />
+
+    <property name="classes.main.dir" value="${output.dir}/classes" />
+    <property name="classes.tool.dir" value="${output.dir}/tool-classes" />
+    <property name="classes.test.dir" value="${output.dir}/test-classes" />
+
+    <property name="src.main.dir" value="${basedir}/src/main/java" />
+    <property name="src.tool.dir" value="${basedir}/src/tool/java" />
+    <property name="src.test.dir" value="${basedir}/src/test/java" />
+
+    <property name="resources.main.dir" value="${basedir}/src/main/resources" />
+    <property name="resources.tool.dir" value="${basedir}/src/tool/resources" />
+    <property name="resources.test.dir" value="${basedir}/src/test/resources" />
+
+    <property name="test.reports.dir" value="${output.dir}/test-report" />
+    <property name="checkstyle.reports.dir" value="${output.dir}/checkstyle-report" />
+
+    <property name="lib.dir" value="${basedir}/lib" />
+
+    <path id="main-lib" />
+    <path id="tool-lib" />
+    <path id="test-lib">
+        <pathelement location="${lib.dir}/testng-6.0.jar" />
+    </path>
+
+    <target name="clean">
+        <delete dir="${output.dir}" />
+    </target>
+
+    <property name="compiler.args" value="-Xlint:all" />
+
+    <defaultexcludes add="**/.git/**"/>
+
+    <target name="compile">
+        <mkdir dir="${output.dir}" />
+        <mkdir dir="${classes.main.dir}" />
+        <mkdir dir="${classes.tool.dir}" />
+        <mkdir dir="${classes.test.dir}" />
+
+        <copy todir="${classes.main.dir}" failonerror="false">
+            <fileset dir="${resources.main.dir}" />
+        </copy>
+
+        <copy todir="${classes.tool.dir}" failonerror="false">
+            <fileset dir="${resources.tool.dir}" />
+        </copy>
+
+        <javac srcdir="${src.main.dir}" destdir="${classes.main.dir}" fork="true" encoding="utf-8" includeantruntime="false">
+            <classpath refid="main-lib" />
+            <compilerarg line="${compiler.args}" />
+        </javac>
+
+        <javac srcdir="${src.tool.dir}" destdir="${classes.tool.dir}" fork="true" encoding="utf-8" includeantruntime="false">
+            <classpath>
+                <path location="${classes.main.dir}" />
+                <path refid="tool-lib" />
+            </classpath>
+            <compilerarg line="${compiler.args}" />
+        </javac>
+
+        <javac srcdir="${src.test.dir}" destdir="${classes.test.dir}" fork="true" debug="true" encoding="utf-8" includeantruntime="false">
+            <classpath>
+                <path location="${classes.main.dir}" />
+                <path location="${classes.tool.dir}" />
+                <path refid="test-lib" />
+            </classpath>
+            <compilerarg line="${compiler.args}" />
+        </javac>
+
+    </target>
+
+    <target name="jar" depends="compile" description="generate the jar file">
+        <jar jarfile="${output.dir}/${project}.jar" basedir="${classes.main.dir}" />
+    </target>
+
+    <taskdef classpath="${lib.dir}/testng-6.0.jar" resource="testngtasks" />
+
+    <property name="groups" value="" />
+    <property name="excludegroups" value="broken,benchmarks" />
+    <property name="test.args" value="" />
+
+    <target name="test" depends="compile">
+        <mkdir dir="${test.reports.dir}" />
+        <testng outputDir="${test.reports.dir}" groups="${groups}" excludedgroups="${excludegroups}" haltOnfailure="true">
+            <classpath>
+                <path location="${classes.main.dir}" />
+                <path location="${classes.tool.dir}" />
+                <path refid="test-lib" />
+                <path location="${classes.test.dir}" />
+            </classpath>
+            <classfileset dir="${classes.test.dir}" includes="**/*.class" />
+            <jvmarg line="${test.args}"/>
+        </testng>
+    </target>
+
+    <taskdef classpath="${lib.dir}/checkstyle/checkstyle-5.3-all.jar" resource="checkstyletask.properties" />
+
+    <target name="checkstyle" depends="compile" description="run Checkstyle to ensure code guidelines conformance">
+        <mkdir dir="${checkstyle.reports.dir}" />
+        <checkstyle config="${lib.dir}/checkstyle/openstat_checks.xml">
+            <fileset dir="${basedir}">
+                <patternset includes="**/*.java" />
+            </fileset>
+            <classpath>
+                <path location="${classes.main.dir}" />
+                <path location="${classes.tool.dir}" />
+                <path location="${classes.test.dir}" />
+                <path refid="main-lib" />
+                <path refid="tool-lib" />
+                <path refid="test-lib" />
+            </classpath>
+            <formatter type="xml" toFile="${checkstyle.reports.dir}/checkstyle-result.xml" />
+        </checkstyle>
+    </target>
+
+    <target name="all" depends="clean,compile,checkstyle,test,jar" />
+
+
+    <property name="learningset.encoding" value="WIN_1251" />
+    <property name="learningset.path" value="${basedir}/learning-set/data.txt" />
+
+    <target name="train" depends="compile">
+        <java classname="com.openstat.csdetecting.LearningCharsetDetector" fork="true">
+            <classpath>
+                <path refid="tool-lib" />
+                <path location="${classes.tool.dir}" />
+                <path location="${classes.main.dir}" />
+            </classpath>
+            <arg line="${learningset.path} ${resources.main.dir} ${learningset.encoding}"/>
+        </java>
+        <copy todir="${classes.main.dir}" overwrite="true">
+            <fileset dir="${resources.main.dir}" />
+        </copy>
+    </target>
+
+</project>
