@@ -28,7 +28,7 @@ public class BenchmarksTests {
     private static final AssertStrategy NORMAL_ASSERTION = new AssertStrategy() {
                 @Override
                 public void checkResults(int tries, int failures) {
-                    assertTrue(tries / 66 > failures);
+                    assertTrue(failures * 100 / tries < 2);
                 }
             };
     private static final Pattern CLEANUP = Pattern.compile("[^a-zA-Z1-9а-яА-ЯїЇiIЄє'\\s\\-]");
@@ -89,18 +89,13 @@ public class BenchmarksTests {
     }
 
     @Test
-    public void testDetectStrugatskie() throws IOException {
-        testDetect("veschi-veka.txt", NORMAL_ASSERTION, RU_CHARSETS);
+    public void testDetectRussian() throws IOException {
+        testDetect("pushkin.txt", NORMAL_ASSERTION, RU_CHARSETS);
     }
 
     @Test
-    public void testDetectPolitology() throws IOException {
-        testDetect("politology.txt", NORMAL_ASSERTION, RU_CHARSETS);
-    }
-
-    @Test
-    public void testDetectUkrain() throws IOException {
-        testDetect("ukr.txt", NORMAL_ASSERTION, UA_CHARSETS);
+    public void testDetectUkrainian() throws IOException {
+        testDetect("kocubinski.txt", NORMAL_ASSERTION, UA_CHARSETS);
     }
 
     @Test
@@ -108,7 +103,7 @@ public class BenchmarksTests {
         testDetect("garbage.txt", new AssertStrategy() {
             @Override
             public void checkResults(int tries, int failures) {
-                assertTrue(tries / 3 < failures);
+                assertTrue(failures * 100 / tries > 35);
             }
         }, RU_CHARSETS);
     }
