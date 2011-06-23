@@ -17,6 +17,8 @@ package com.openstat.charsetdetector;
 
 import org.testng.annotations.Test;
 import java.nio.charset.Charset;
+import java.util.Locale;
+
 import static org.testng.Assert.*;
 
 @Test
@@ -44,10 +46,12 @@ public final class UTF8CharsetDetectorTests {
         assertFalse(UTF8CharsetDetector.isUTF8(b));
 
         b = "asdadasdWWWW123123".getBytes(Charset.forName("windows-1251"));
+
         assertTrue(UTF8CharsetDetector.isUTF8(b));
         assertEquals(new String(b, Charset.forName("UTF-8")), "asdadasdWWWW123123");
 
         b = "asdadasdWWWW12!!!@@@###$$3123".getBytes(Charset.forName("ISO-8859-1"));
+
         assertTrue(UTF8CharsetDetector.isUTF8(b));
         assertEquals(new String(b, Charset.forName("UTF-8")), "asdadasdWWWW12!!!@@@###$$3123");
 

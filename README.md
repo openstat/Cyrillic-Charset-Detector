@@ -47,7 +47,7 @@ If you have made some changes then run:
 
       $ ant
 
-to check that you have not broken the tests and to check the code style.
+to check if you have not broken the test or style checks.
 
 
 Example of usage
@@ -112,7 +112,7 @@ Command line arguments:
        `[project directory]/learning-set/data.txt`
 
  - **learningset.encoding** is encoding of the learning set file. It can be `WIN_1251`, `KOI8_R`, `ISO_8859_5`
-        or `IBM855`. By default it is `WIN_1251`
+        or `IBM855`. Default it is `WIN_1251`
 
 After you ran "ant train" run:
 

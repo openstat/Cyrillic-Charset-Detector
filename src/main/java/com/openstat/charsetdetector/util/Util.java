@@ -15,6 +15,12 @@
  */
 package com.openstat.charsetdetector.util;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+
 /**
  * Generic utilities class. Contains everything that does not fit in any more
  * relevant classes.
@@ -25,5 +31,17 @@ public final class Util {
 
     public static int signToUnsign(byte b) {
         return b & 0xff;
+    }
+
+    public static BufferedWriter createWriter(File file) {
+        try {
+            return new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)));
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static BufferedWriter createWriter(String file) {
+        return createWriter(new File(file));
     }
 }

@@ -47,7 +47,12 @@ public final class CharsetDetector {
                 BitSet triples  = (BitSet) triplesStream.readObject();
                 triplesStream.close();
 
-                return new CyrillicCharsetDetector(wordThresholds, triples);
+                ObjectInputStream frequenciesStream = new ObjectInputStream(
+                    CharsetDetector.class.getResourceAsStream("/frequencies.data"));
+                int[] frequencies  = (int[]) frequenciesStream.readObject();
+                frequenciesStream.close();
+
+                return new CyrillicCharsetDetector(wordThresholds, triples, frequencies);
 
             } catch (Exception e) {
                 throw new RuntimeException(e);

@@ -41,21 +41,26 @@ public class CyrillicCharsetDetector {
     private static final class Stats {
         public int invalids = 0;
         public int all = 0;
+        public long frequencies = 1;
 
         public void reset() {
             invalids = 0;
             all = 0;
+            frequencies = 1;
         }
     }
 
     private final int rndInvalidCoef = 10;
     private final BitSet wordThresholdsTable;
     private final BitSet triplesTable;
+    private final int[] charFrequenciesTable;
 
-    public CyrillicCharsetDetector(BitSet wordThresholdsTable, BitSet triplesTable) {
+    public CyrillicCharsetDetector(BitSet wordThresholdsTable, BitSet triplesTable,
+                                   int[] charFrequenciesTable) {
         super();
         this.wordThresholdsTable = wordThresholdsTable;
         this.triplesTable = triplesTable;
+        this.charFrequenciesTable = charFrequenciesTable;
     }
 
     public static int getTripleIndex(CyrillicCharset cs, byte a, byte b, byte c) {
@@ -66,6 +71,15 @@ public class CyrillicCharsetDetector {
             return -1;
         }
         return indexA * CHARS_NUM * CHARS_NUM + indexB * CHARS_NUM + indexC;
+    }
+
+    public static int getPairIndex(CyrillicCharset cs, byte a, byte b) {
+        final int indexA = cs.charToIndex(a);
+        final int indexB = cs.charToIndex(b);
+        if (indexA < 0 || indexB < 0) {
+            return -1;
+        }
+        return indexA * CHARS_NUM + indexB;
     }
 
     public static int getWordThresholdIndex(CyrillicCharset cs, byte a, byte b, byte c, byte d) {
@@ -93,7 +107,7 @@ public class CyrillicCharsetDetector {
      */
     public CyrillicCharset detectCyrillicCharset(byte[] b) {
         if (b.length < 3) { // too small to analyze
-            return CyrillicCharset.WIN_1251; // most popular
+            return CyrillicCharset.values()[0]; // most popular
         }
 
         resetStats();
@@ -103,6 +117,8 @@ public class CyrillicCharsetDetector {
         for (int i = 0; i < bytes.length - 3; i++) {
             for (CyrillicCharset cs : CyrillicCharset.values()) {
                  Stats stats = statsPerCharset.get(cs);
+
+                 collectFrequenciesStats(stats, getPairIndex(cs, bytes[i], bytes[i + 1]));
 
                  int wordThresholdIndex =
                      getWordThresholdIndex(cs, bytes[i], bytes[i + 1], bytes[i + 2], bytes[i + 3]);
@@ -127,36 +143,22 @@ public class CyrillicCharsetDetector {
      * @return detected charset
      */
     private CyrillicCharset analyzeStats() {
-        CyrillicCharset best = firstCharsetWithNotNullStats();
-
-        if (best == null) {
-            return CyrillicCharset.values()[0];
-        }
+        CyrillicCharset best = CyrillicCharset.values()[0];
 
         for (CyrillicCharset cs : CyrillicCharset.values()) {
             Stats eachStats = statsPerCharset.get(cs);
             Stats bestStats = statsPerCharset.get(best);
-
             removeRandomIvalidCombinations(eachStats);
-
-            if (eachStats.all > 0
-                && (eachStats.invalids < bestStats.invalids
-                        || (eachStats.invalids == bestStats.invalids
-                                && eachStats.all > bestStats.all))) {
+            if (eachStats.all > bestStats.all
+                        || (eachStats.all == bestStats.all
+                                && (eachStats.invalids < bestStats.invalids
+                                || (eachStats.invalids == bestStats.invalids
+                                      && eachStats.frequencies > bestStats.frequencies)))) {
 
                 best = cs;
             }
         }
         return best;
-    }
-
-    private CyrillicCharset firstCharsetWithNotNullStats() {
-        for (CyrillicCharset cs : CyrillicCharset.values()) {
-            if (statsPerCharset.get(cs).all > 0) {
-                return cs;
-            }
-        }
-        return null;
     }
 
     private byte[] wrapWithSpaces(byte[] b) {
@@ -169,12 +171,18 @@ public class CyrillicCharsetDetector {
         return bytes;
     }
 
-    private void collectStats(BitSet table, Stats stats, int pairIndex) {
-        if (pairIndex >= 0) {
+    private void collectStats(BitSet table, Stats stats, int index) {
+        if (index >= 0) {
             stats.all++;
-            if (!table.get(pairIndex)) {
+            if (!table.get(index)) {
                 stats.invalids++;
             }
+        }
+    }
+
+    private void collectFrequenciesStats(Stats stats, int index) {
+        if (index >= 0) {
+            stats.frequencies *= charFrequenciesTable[index];
         }
     }
 
@@ -195,6 +203,16 @@ public class CyrillicCharsetDetector {
     private void resetStats() {
         for (CyrillicCharset cs : CyrillicCharset.values()) {
             statsPerCharset.get(cs).reset();
+        }
+    }
+
+    public void print() {
+         for (CyrillicCharset cs : CyrillicCharset.values()) {
+            Stats s = statsPerCharset.get(cs);
+            System.out.println("CS: " + cs);
+            System.out.println("All: " + s.all);
+            System.out.println("Invalids: " + s.invalids);
+            System.out.println("Freq: " + s.frequencies);
         }
     }
 }

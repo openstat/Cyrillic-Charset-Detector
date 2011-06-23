@@ -17,6 +17,7 @@ package com.openstat.charsetdetector;
 
 import static com.openstat.charsetdetector.CyrillicCharset.CHARS_NUM;
 import static com.openstat.charsetdetector.CyrillicCharsetDetector.getTripleIndex;
+import static com.openstat.charsetdetector.CyrillicCharsetDetector.getPairIndex;
 import static com.openstat.charsetdetector.CyrillicCharsetDetector.getWordThresholdIndex;
 
 import java.io.File;
@@ -33,6 +34,7 @@ public final class LearningCharsetDetector {
     public static void learnDetecting(String learnigSetPath, String outputDir, CyrillicCharset cs) {
         BitSet wordThresholds = new BitSet(CHARS_NUM * CHARS_NUM * CHARS_NUM * 2);
         BitSet triples = new BitSet(CHARS_NUM * CHARS_NUM * CHARS_NUM);
+        int[] charFrequencies = new int[CHARS_NUM * CHARS_NUM];
         File learningSet = new File(learnigSetPath);
         if (!learningSet.exists() || !learningSet.isFile()) {
             throw new RuntimeException(
@@ -46,6 +48,10 @@ public final class LearningCharsetDetector {
             int prevPrevPrevChar = 0;
             while (is.available() > 0) {
                 nextChar = is.read();
+
+                if (getPairIndex(cs, (byte) prevChar, (byte) nextChar) >= 0) {
+                    charFrequencies[getPairIndex(cs, (byte) prevChar, (byte) nextChar)]++;
+                }
 
                 final int tripleIndex = getTripleIndex(cs, (byte) prevPrevChar, (byte) prevChar, (byte) nextChar);
                 if (prevChar != 0 && prevPrevChar != 0
@@ -66,13 +72,14 @@ public final class LearningCharsetDetector {
             }
 
             is.close();
-            serializeStatsTables(wordThresholds, triples, outputDir);
+            serializeStatsTables(wordThresholds, triples, charFrequencies, outputDir);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    private static void serializeStatsTables(BitSet wordThresholds, BitSet triples, String outputDir)
+    private static void serializeStatsTables(BitSet wordThresholds, BitSet triples,
+                      int[] frequencies, String outputDir)
             throws IOException {
         ObjectOutputStream wordThresholdsStream = new ObjectOutputStream(
                 new FileOutputStream(outputDir + "/wordThresholds.data"));
@@ -83,6 +90,11 @@ public final class LearningCharsetDetector {
                 new FileOutputStream(outputDir + "/triples.data"));
         triplesStream.writeObject(triples);
         triplesStream.close();
+
+        ObjectOutputStream frequenciesStream = new ObjectOutputStream(
+                new FileOutputStream(outputDir + "/frequencies.data"));
+        frequenciesStream.writeObject(frequencies);
+        frequenciesStream.close();
     }
 
     public static void main(String[] args) {

@@ -66,6 +66,10 @@
             <fileset dir="${resources.tool.dir}" />
         </copy>
 
+         <copy todir="${classes.test.dir}" failonerror="false">
+            <fileset dir="${resources.test.dir}" />
+         </copy>
+
         <javac srcdir="${src.main.dir}" destdir="${classes.main.dir}" fork="true" encoding="utf-8" includeantruntime="false">
             <classpath refid="main-lib" />
             <compilerarg line="${compiler.args}" />
@@ -74,6 +78,7 @@
         <javac srcdir="${src.tool.dir}" destdir="${classes.tool.dir}" fork="true" encoding="utf-8" includeantruntime="false">
             <classpath>
                 <path location="${classes.main.dir}" />
+                <path refid="main-lib" />
                 <path refid="tool-lib" />
             </classpath>
             <compilerarg line="${compiler.args}" />
@@ -83,6 +88,8 @@
             <classpath>
                 <path location="${classes.main.dir}" />
                 <path location="${classes.tool.dir}" />
+                <path refid="main-lib" />
+                <path refid="tool-lib" />
                 <path refid="test-lib" />
             </classpath>
             <compilerarg line="${compiler.args}" />
@@ -90,8 +97,28 @@
 
     </target>
 
-    <target name="jar" depends="compile" description="generate the jar file">
-        <jar jarfile="${output.dir}/${project}.jar" basedir="${classes.main.dir}" />
+    <!--
+        The code of the next target was taken from StackOverflow:
+        http://stackoverflow.com/questions/2974106/how-to-lookup-the-latest-git-commit-hash-from-an-ant-build-script/4059546#4059546
+    !-->
+    <available file=".git" type="dir" property="git.present"/>
+    <target name="git.revision" description="Store git revision in ${repository.version}" if="git.present">
+        <exec executable="git" outputproperty="git.revision" failifexecutionfails="false" errorproperty="">
+            <arg value="describe"/>
+            <arg value="--tags"/>
+            <arg value="--always"/>
+            <arg value="HEAD"/>
+        </exec>
+        <condition property="repository.version" value="${git.revision}" else="unknown">
+            <and>
+                <isset property="git.revision"/>
+                <length string="${git.revision}" trim="yes" length="0" when="greater"/>
+            </and>
+        </condition>
+    </target>
+
+    <target name="jar" depends="compile,git.revision" description="generate the jar file">
+        <jar jarfile="${output.dir}/charsetdetector-rev-${repository.version}.jar" basedir="${classes.main.dir}"/>
     </target>
 
     <taskdef classpath="${lib.dir}/testng-6.0.jar" resource="testngtasks" />
@@ -106,8 +133,10 @@
             <classpath>
                 <path location="${classes.main.dir}" />
                 <path location="${classes.tool.dir}" />
-                <path refid="test-lib" />
                 <path location="${classes.test.dir}" />
+                <path refid="main-lib" />
+                <path refid="tool-lib" />
+                <path refid="test-lib" />
             </classpath>
             <classfileset dir="${classes.test.dir}" includes="**/*.class" />
             <jvmarg line="${test.args}"/>
@@ -141,8 +170,9 @@
     <property name="learningset.path" value="${basedir}/learning-set/data.txt" />
 
     <target name="train" depends="compile">
-        <java classname="com.openstat.csdetecting.LearningCharsetDetector" fork="true">
+        <java classname="com.openstat.charsetdetector.LearningCharsetDetector" fork="true">
             <classpath>
+                <path refid="main-lib" />
                 <path refid="tool-lib" />
                 <path location="${classes.tool.dir}" />
                 <path location="${classes.main.dir}" />
@@ -154,4 +184,19 @@
         </copy>
     </target>
 
+
+    <property name="benchmarks.reports.dir" value="${test.reports.dir}/benchmarks" />
+     <property name="benchmarks.segment.size" value="2" />
+     <property name="benchmarks.words.num" value="3" />
+
+    <target name="benchmarks">
+        <mkdir dir="${benchmarks.reports.dir}" />
+        <ant target="test">
+            <property name="excludegroups" value=""/>
+            <property name="groups" value="benchmarks"/>
+             <property name="test.args"
+             value="-Dtest.output='${benchmarks.reports.dir}' -Dtest.words.num='${benchmarks.words.num}'
+                 -Dtest.segment.size='${benchmarks.segment.size}'"/>
+        </ant>
+    </target>
 </project>
