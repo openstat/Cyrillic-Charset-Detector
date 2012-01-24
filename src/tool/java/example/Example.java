@@ -1,15 +1,19 @@
 package example;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 
 import com.openstat.charsetdetector.CharsetDetector;
+
 /**
  * Prints the content of file with unknown encoding.
  */
 public final class Example {
-    private Example() { }
+
+    private Example() {
+    }
 
     /**
      * @param args - the first argument is path to file with unknown encoding

@@ -6,7 +6,6 @@ public final class Benchmarks {
     private long time;
     private int value;
     private int fails;
-
     private transient long startProfileTime;
 
     public Benchmarks() {

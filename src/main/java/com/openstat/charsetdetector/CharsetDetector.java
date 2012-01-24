@@ -18,6 +18,7 @@ package com.openstat.charsetdetector;
 import java.io.ObjectInputStream;
 import java.nio.charset.Charset;
 import java.util.BitSet;
+
 /**
  * Detects a cyrillic charset by array of bytes.
  * Supported charsets: utf-8, win-1251, koi8-r, iso-8859-5, ibm855.
@@ -28,7 +29,6 @@ import java.util.BitSet;
 public final class CharsetDetector {
 
     private static final Charset NIO_CS_UTF = Charset.forName("UTF-8");
-
     private CyrillicCharsetDetector cyrDetector = getCyrDetector();
 
     /**
@@ -36,27 +36,27 @@ public final class CharsetDetector {
      * @return CyrillicCharsetDetector instance
      */
     public static CyrillicCharsetDetector getCyrDetector() {
-            try {
-                ObjectInputStream wordThresholdsStream = new ObjectInputStream(
-                   CharsetDetector.class.getResourceAsStream("/wordThresholds.data"));
-                BitSet wordThresholds = (BitSet) wordThresholdsStream.readObject();
-                wordThresholdsStream.close();
+        try {
+            ObjectInputStream boundaryTrigramsStream = new ObjectInputStream(
+                    CharsetDetector.class.getResourceAsStream("/wordThresholds.data"));
+            BitSet boundaryTrigrams = (BitSet) boundaryTrigramsStream.readObject();
+            boundaryTrigramsStream.close();
 
-                ObjectInputStream triplesStream = new ObjectInputStream(
+            ObjectInputStream trigramsStream = new ObjectInputStream(
                     CharsetDetector.class.getResourceAsStream("/triples.data"));
-                BitSet triples  = (BitSet) triplesStream.readObject();
-                triplesStream.close();
+            BitSet trigrams = (BitSet) trigramsStream.readObject();
+            trigramsStream.close();
 
-                ObjectInputStream frequenciesStream = new ObjectInputStream(
+            ObjectInputStream frequenciesStream = new ObjectInputStream(
                     CharsetDetector.class.getResourceAsStream("/frequencies.data"));
-                int[] frequencies  = (int[]) frequenciesStream.readObject();
-                frequenciesStream.close();
+            int[] frequencies = (int[]) frequenciesStream.readObject();
+            frequenciesStream.close();
 
-                return new CyrillicCharsetDetector(wordThresholds, triples, frequencies);
+            return new CyrillicCharsetDetector(boundaryTrigrams, trigrams, frequencies);
 
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**

@@ -22,23 +22,19 @@ import static com.openstat.charsetdetector.CyrillicCharset.CHARS_NUM;
 
 /**
  * Using for detection one byte cyrillic encoding.
- * See CyrillicCharset for supporting encodings.
+ * See #CyrillicCharset for supporting encodings.
  *
- * Algorithm looks how many invalid (i.e not not encountered in learning set)
- * triple combinations of russian chars and
- * how many invalid word thresholds (i.e. not alphabetic char + triple or triple + not alphabetic char).
- *
- * Optimized to detect encodings for short phrases.
+ * Optimized to detect encodings for short byte sequences.
  *
  * Non thread safe.
  */
-public class CyrillicCharsetDetector {
+public final class CyrillicCharsetDetector {
 
     private static final int SPACE_CHAR_CODE = 0x20;
-
     private final EnumMap<CyrillicCharset, Stats> statsPerCharset = createStats();
 
     private static final class Stats {
+
         public int invalids = 0;
         public int all = 0;
         public long frequencies = 1;
@@ -49,54 +45,30 @@ public class CyrillicCharsetDetector {
             frequencies = 1;
         }
     }
-
-    private final int rndInvalidCoef = 10;
-    private final BitSet wordThresholdsTable;
-    private final BitSet triplesTable;
+    /**
+     * Digram is a sequence of 2 cyrillic chars.
+     * This table presents how many times digram with number 'i' 
+     * meets in the learning-set text.
+     */
     private final int[] charFrequenciesTable;
+    /**
+     * Trigram is a sequence of 3 cyrillic chars.
+     * This table presents if trigram with number 'i' exists in the learning-set text.
+     * These frequencies are incremented by 1 (the minimum value of this table is 1)
+     */
+    private final BitSet trigramsTable;
+    /**
+     * Boundary trigram is the first or the last trigram in a cyrillic word.
+     * This table presents if trigram with number 'i' exists in learning-set text.
+     */
+    private final BitSet boundaryTrigramsTable;
 
     public CyrillicCharsetDetector(BitSet wordThresholdsTable, BitSet triplesTable,
-                                   int[] charFrequenciesTable) {
+            int[] charFrequenciesTable) {
         super();
-        this.wordThresholdsTable = wordThresholdsTable;
-        this.triplesTable = triplesTable;
+        this.boundaryTrigramsTable = wordThresholdsTable;
+        this.trigramsTable = triplesTable;
         this.charFrequenciesTable = charFrequenciesTable;
-    }
-
-    public static int getTripleIndex(CyrillicCharset cs, byte a, byte b, byte c) {
-        final int indexA = cs.charToIndex(a);
-        final int indexB = cs.charToIndex(b);
-        final int indexC = cs.charToIndex(c);
-        if (indexA < 0 || indexB < 0 || indexC < 0) {
-            return -1;
-        }
-        return indexA * CHARS_NUM * CHARS_NUM + indexB * CHARS_NUM + indexC;
-    }
-
-    public static int getPairIndex(CyrillicCharset cs, byte a, byte b) {
-        final int indexA = cs.charToIndex(a);
-        final int indexB = cs.charToIndex(b);
-        if (indexA < 0 || indexB < 0) {
-            return -1;
-        }
-        return indexA * CHARS_NUM + indexB;
-    }
-
-    public static int getWordThresholdIndex(CyrillicCharset cs, byte a, byte b, byte c, byte d) {
-        final int indexA = cs.charToIndex(a);
-        final int indexB = cs.charToIndex(b);
-        final int indexC = cs.charToIndex(c);
-        final int indexD = cs.charToIndex(d);
-        if (indexB < 0 || indexC < 0 || (indexA < 0 && indexD < 0)) {
-            return -1;
-        }
-        if (indexA < 0) { // it is word's beginning 3 chars
-            return indexB * CHARS_NUM * CHARS_NUM + indexC * CHARS_NUM + indexD;
-        }
-        if (indexD < 0) { // it is word's ending 3 chars
-            return indexA * CHARS_NUM * CHARS_NUM + indexB * CHARS_NUM + indexC;
-        }
-        return -1; //it is  the middle of the word (4 valid chars)
     }
 
     /**
@@ -113,33 +85,79 @@ public class CyrillicCharsetDetector {
         resetStats();
 
         byte[] bytes = wrapWithSpaces(b);
+        for (CyrillicCharset cs : CyrillicCharset.values()) {
+            Stats stats = statsPerCharset.get(cs);
+            // We go through all available 4-chars sequences 
+            // an look if they mathes some the patterns of digramm,
+            // trigramm and boundary trigramm.
+            // 'A' = any cyrillic char (one or #CyrillicCharset.CHARS)
+            // '^' = other chars (spaces, punctuation marks, numbers, latin chars etc)
+            // '*' = any char
+            int index1;
+            // char index is its alfabetic number if it is a cyrillic char
+            // or -1 otherwice 
+            int index2 = cs.charToIndex(bytes[0]);
+            int index3 = cs.charToIndex(bytes[1]);
+            int index4 = cs.charToIndex(bytes[2]);
+            for (int i = 0; i < bytes.length - 3; i++) {
+                index1 = index2;
+                index2 = index3;
+                index3 = index4;
+                index4 = cs.charToIndex(bytes[i + 3]);
+                // chars sequence pattern: AA**
+                if (index1 >= 0 && index2 >= 0) {
+                    collectFrequenciesStats(stats, digramIndex(index1, index2));
+                    // chars sequence pattern: AAA*
+                    if (index3 >= 0) {
+                        collectStats(trigramsTable, stats,
+                                trigramIndex(index1, index2, index3));
+                        // chars sequence pattern: AAA^
+                        if (index4 < 0) {
+                            collectStats(boundaryTrigramsTable, stats,
+                                    endBoundaryTrigramIndex(index1, index2, index3));
+                        }
 
-        for (int i = 0; i < bytes.length - 3; i++) {
-            for (CyrillicCharset cs : CyrillicCharset.values()) {
-                 Stats stats = statsPerCharset.get(cs);
+                    }
+                    // chars sequence pattern: ^AAA
+                } else if (index1 < 0 && index2 >= 0 && index2 >= 0 && index3 >= 0 && index4 >= 0) {
+                    collectStats(boundaryTrigramsTable, stats,
+                            startBoundaryTrigramIndex(index2, index3, index4));
+                }
+            }
+        }
 
-                 collectFrequenciesStats(stats, getPairIndex(cs, bytes[i], bytes[i + 1]));
+        return analyzeStats();
+    }
 
-                 int wordThresholdIndex =
-                     getWordThresholdIndex(cs, bytes[i], bytes[i + 1], bytes[i + 2], bytes[i + 3]);
+    public static int startBoundaryTrigramIndex(int index2, int index3, int index4) {
+        int boundaryTrigramIndex = CHARS_NUM * CHARS_NUM * CHARS_NUM + index2 * CHARS_NUM * CHARS_NUM + index3 * CHARS_NUM + index4;
+        return boundaryTrigramIndex;
+    }
 
-                 collectStats(wordThresholdsTable, stats, wordThresholdIndex);
+    public static int endBoundaryTrigramIndex(int index1, int index2, int index3) {
+        int boundaryTrigramIndex = index1 * CHARS_NUM * CHARS_NUM + index2 * CHARS_NUM + index3;
+        return boundaryTrigramIndex;
+    }
 
-                 int tripleIndex = getTripleIndex(cs, bytes[i], bytes[i + 1], bytes[i + 2]);
-                 collectStats(triplesTable, stats, tripleIndex);
-             }
-         }
+    public static int digramIndex(int index1, int index2) {
+        int digramIndex = index1 * CHARS_NUM + index2;
+        return digramIndex;
+    }
 
-         return analyzeStats();
+    public static int trigramIndex(int index1, int index2, int index3) {
+        int trigramIndex = index1 * CHARS_NUM * CHARS_NUM + index2 * CHARS_NUM + index3;
+        return trigramIndex;
     }
 
     /**
-     * Looks for charset with minimum number of invalid russian chars combinations
-     * excepting those that have 0 russian chars combinations.
-     *
-     * If there are several ones then returns  charset
-     * with maximum number of all russian chars combinations.
-     *
+     * Choosing the best charset encoding.
+     * First we choose decoded string with the maximum of cyrillic trigrams
+     * (the others most likely has a garbage).
+     * Then we choose strings with the minimum invalid trigrams 
+     * (the trigrams that doesn't exist in learning-set).
+     * Finally if we have more then one string we choose the one with the 
+     * maximum digramfs frequencies coefficient. 
+     * cyrillic trigrams (It means that)
      * @return detected charset
      */
     private CyrillicCharset analyzeStats() {
@@ -148,12 +166,11 @@ public class CyrillicCharsetDetector {
         for (CyrillicCharset cs : CyrillicCharset.values()) {
             Stats eachStats = statsPerCharset.get(cs);
             Stats bestStats = statsPerCharset.get(best);
-            removeRandomIvalidCombinations(eachStats);
             if (eachStats.all > bestStats.all
-                        || (eachStats.all == bestStats.all
-                                && (eachStats.invalids < bestStats.invalids
-                                || (eachStats.invalids == bestStats.invalids
-                                      && eachStats.frequencies > bestStats.frequencies)))) {
+                    || (eachStats.all == bestStats.all
+                    && (eachStats.invalids < bestStats.invalids
+                    || (eachStats.invalids == bestStats.invalids
+                    && eachStats.frequencies > bestStats.frequencies)))) {
 
                 best = cs;
             }
@@ -161,38 +178,28 @@ public class CyrillicCharsetDetector {
         return best;
     }
 
-    private byte[] wrapWithSpaces(byte[] b) {
+    private static byte[] wrapWithSpaces(byte[] b) {
         byte[] bytes = new byte[b.length + 2];
         bytes[0] = SPACE_CHAR_CODE;
-        for (int i = 0; i < b.length; i++) {
-            bytes[i + 1] = b[i];
-        }
+        System.arraycopy(b, 0, bytes, 1, b.length);
         bytes[b.length + 1] = SPACE_CHAR_CODE;
         return bytes;
     }
 
+    // assert index > 0
     private void collectStats(BitSet table, Stats stats, int index) {
-        if (index >= 0) {
-            stats.all++;
-            if (!table.get(index)) {
-                stats.invalids++;
-            }
+        stats.all++;
+        if (!table.get(index)) {
+            stats.invalids++;
         }
     }
 
+    // assert index > 0
     private void collectFrequenciesStats(Stats stats, int index) {
-        if (index >= 0) {
-            stats.frequencies *= charFrequenciesTable[index];
-        }
+        stats.frequencies *= charFrequenciesTable[index];
     }
 
-    private void removeRandomIvalidCombinations(Stats stats) {
-            if (stats.invalids * rndInvalidCoef < stats.all) {
-                stats.invalids = 0;
-            }
-    }
-
-    private EnumMap<CyrillicCharset, Stats> createStats() {
+    private static EnumMap<CyrillicCharset, Stats> createStats() {
         EnumMap<CyrillicCharset, Stats> newStats = new EnumMap<CyrillicCharset, Stats>(CyrillicCharset.class);
         for (CyrillicCharset cs : CyrillicCharset.values()) {
             newStats.put(cs, new Stats());
@@ -203,16 +210,6 @@ public class CyrillicCharsetDetector {
     private void resetStats() {
         for (CyrillicCharset cs : CyrillicCharset.values()) {
             statsPerCharset.get(cs).reset();
-        }
-    }
-
-    public void print() {
-         for (CyrillicCharset cs : CyrillicCharset.values()) {
-            Stats s = statsPerCharset.get(cs);
-            System.out.println("CS: " + cs);
-            System.out.println("All: " + s.all);
-            System.out.println("Invalids: " + s.invalids);
-            System.out.println("Freq: " + s.frequencies);
         }
     }
 }

@@ -21,9 +21,11 @@ import org.testng.annotations.Test;
 import static org.testng.Assert.assertTrue;
 
 import com.openstat.charsetdetector.CharsetDetector;
+import org.testng.annotations.BeforeGroups;
 
 @Test(groups = "benchmarks")
 public class BenchmarksTests {
+    public static final int WARM_UP_VALUE = 300000000;
 
     private static final AssertStrategy NORMAL_ASSERTION = new AssertStrategy() {
                 @Override
@@ -56,7 +58,17 @@ public class BenchmarksTests {
     private String testOutput = ".";
     private int segmentSize = 2;
     private int wordsInPhrase = 3;
-
+    
+    @BeforeGroups(value = "benchmarks")
+    public static void warmUpJVM() throws IOException {
+        List<String> words = splitBenchmarksTextIntoWords("pushkin.txt");
+        CharsetDetector detector = new CharsetDetector();
+        for (int i = 0; i < WARM_UP_VALUE; i++) {
+            detector.detectNioCharset(words.get(i %  words.size()).getBytes(NIO_CS_WIN_1251));
+            detector.detectNioCharset(words.get(i %  words.size()).getBytes());
+        }
+    }
+    
     @Parameters("test.output")
     @BeforeTest
     public void setTestOutput(String testOutput) {
@@ -172,9 +184,9 @@ public class BenchmarksTests {
         return benchmarks;
     }
 
-    private ArrayList<String> splitBenchmarksTextIntoWords(String textFile) throws IOException {
+    private static ArrayList<String> splitBenchmarksTextIntoWords(String textFile) throws IOException {
         BufferedReader writer = new BufferedReader(
-                new InputStreamReader(getClass().getResourceAsStream("/benchmarks/" + textFile), "UTF-8"));
+                new InputStreamReader(BenchmarksTests.class.getResourceAsStream("/benchmarks/" + textFile), "UTF-8"));
         ArrayList<String> words = new ArrayList<String>();
         String line;
         Pattern split = Pattern.compile(" ");
@@ -192,7 +204,7 @@ public class BenchmarksTests {
         return words;
     }
 
-    private String prepareWord(String word) {
+    private static String prepareWord(String word) {
         return CLEANUP.matcher(word).replaceAll("");
     }
 

@@ -17,7 +17,6 @@ package com.openstat.charsetdetector;
 
 import org.testng.annotations.Test;
 import java.nio.charset.Charset;
-import java.util.Locale;
 
 import static org.testng.Assert.*;
 

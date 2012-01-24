@@ -16,25 +16,25 @@
 package com.openstat.charsetdetector;
 
 import static com.openstat.charsetdetector.CyrillicCharset.CHARS_NUM;
-import static com.openstat.charsetdetector.CyrillicCharsetDetector.getTripleIndex;
-import static com.openstat.charsetdetector.CyrillicCharsetDetector.getPairIndex;
-import static com.openstat.charsetdetector.CyrillicCharsetDetector.getWordThresholdIndex;
-
+import static com.openstat.charsetdetector.CyrillicCharsetDetector.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.util.Arrays;
 import java.util.BitSet;
 
 public final class LearningCharsetDetector {
 
-    private LearningCharsetDetector() {}
+    private LearningCharsetDetector() {
+    }
 
     public static void learnDetecting(String learnigSetPath, String outputDir, CyrillicCharset cs) {
-        BitSet wordThresholds = new BitSet(CHARS_NUM * CHARS_NUM * CHARS_NUM * 2);
-        BitSet triples = new BitSet(CHARS_NUM * CHARS_NUM * CHARS_NUM);
-        int[] charFrequencies = new int[CHARS_NUM * CHARS_NUM];
+        BitSet boundaryTrigrams = new BitSet(CHARS_NUM * CHARS_NUM * CHARS_NUM * 2);
+        BitSet trigrams = new BitSet(CHARS_NUM * CHARS_NUM * CHARS_NUM);
+        int[] digramsFrequencies = new int[CHARS_NUM * CHARS_NUM];
+        Arrays.fill(digramsFrequencies, 1);
         File learningSet = new File(learnigSetPath);
         if (!learningSet.exists() || !learningSet.isFile()) {
             throw new RuntimeException(
@@ -42,54 +42,56 @@ public final class LearningCharsetDetector {
         }
         try {
             FileInputStream is = new FileInputStream(learningSet);
-            int nextChar = 0;
+            int curChar = 0;
             int prevChar = 0;
             int prevPrevChar = 0;
             int prevPrevPrevChar = 0;
             while (is.available() > 0) {
-                nextChar = is.read();
-
-                if (getPairIndex(cs, (byte) prevChar, (byte) nextChar) >= 0) {
-                    charFrequencies[getPairIndex(cs, (byte) prevChar, (byte) nextChar)]++;
+                curChar = is.read();
+                int ind1 = cs.charToIndex((byte) prevPrevPrevChar);
+                int ind2 = cs.charToIndex((byte) prevPrevChar);
+                int ind3 = cs.charToIndex((byte) prevChar);
+                int ind4 = cs.charToIndex((byte) curChar);
+                if (ind1 >= 0 && ind2 >= 0) {
+                    digramsFrequencies[digramIndex(ind1, ind2)]++;
                 }
 
-                final int tripleIndex = getTripleIndex(cs, (byte) prevPrevChar, (byte) prevChar, (byte) nextChar);
-                if (prevChar != 0 && prevPrevChar != 0
-                        && tripleIndex >= 0) {
-                   triples.set(tripleIndex);
+                if (ind1 >= 0 && ind2 >= 0 && ind3 >= 0) {
+                    trigrams.set(trigramIndex(ind1, ind2, ind3));
                 }
 
-                final int wordThresholdIndex = getWordThresholdIndex(cs, (byte) prevPrevPrevChar,
-                        (byte) prevPrevChar, (byte) prevChar, (byte) nextChar);
-                if (prevChar != 0 && prevPrevChar != 0  && prevPrevPrevChar != 0
-                        && wordThresholdIndex >= 0) {
-                    wordThresholds.set(wordThresholdIndex);
+                if (ind1 < 0 && ind2 >= 0 && ind3 >= 0 && ind4 >= 0) {
+                    boundaryTrigrams.set(startBoundaryTrigramIndex(ind2, ind3, ind4));
+                }
+
+                if (ind1 >= 0 && ind2 >= 0 && ind3 >= 0 && ind4 < 0) {
+                    boundaryTrigrams.set(endBoundaryTrigramIndex(ind1, ind2, ind3));
                 }
 
                 prevPrevPrevChar = prevPrevChar;
                 prevPrevChar = prevChar;
-                prevChar = nextChar;
+                prevChar = curChar;
             }
 
             is.close();
-            serializeStatsTables(wordThresholds, triples, charFrequencies, outputDir);
+            serializeStatsTables(boundaryTrigrams, trigrams, digramsFrequencies, outputDir);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    private static void serializeStatsTables(BitSet wordThresholds, BitSet triples,
-                      int[] frequencies, String outputDir)
+    private static void serializeStatsTables(BitSet boundaryTrigrams, BitSet trigrams,
+            int[] frequencies, String outputDir)
             throws IOException {
-        ObjectOutputStream wordThresholdsStream = new ObjectOutputStream(
+        ObjectOutputStream boundaryTrigramsStream = new ObjectOutputStream(
                 new FileOutputStream(outputDir + "/wordThresholds.data"));
-        wordThresholdsStream.writeObject(wordThresholds);
-        wordThresholdsStream.close();
+        boundaryTrigramsStream.writeObject(boundaryTrigrams);
+        boundaryTrigramsStream.close();
 
-        ObjectOutputStream triplesStream = new ObjectOutputStream(
+        ObjectOutputStream trigramsStream = new ObjectOutputStream(
                 new FileOutputStream(outputDir + "/triples.data"));
-        triplesStream.writeObject(triples);
-        triplesStream.close();
+        trigramsStream.writeObject(trigrams);
+        trigramsStream.close();
 
         ObjectOutputStream frequenciesStream = new ObjectOutputStream(
                 new FileOutputStream(outputDir + "/frequencies.data"));

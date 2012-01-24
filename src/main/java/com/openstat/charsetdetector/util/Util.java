@@ -26,6 +26,7 @@ import java.io.OutputStreamWriter;
  * relevant classes.
  */
 public final class Util {
+
     private Util() {
     }
 

@@ -14,6 +14,7 @@
  *  limitations under the License.
  */
 package com.openstat.charsetdetector;
+
 import static com.openstat.charsetdetector.util.Util.signToUnsign;
 
 import java.nio.charset.Charset;
@@ -24,13 +25,10 @@ public enum CyrillicCharset {
     KOI8_R("KOI8-R"),
     KOI8_U("KOI8-U"),
     CP866("Cp866");
-
     private static final String CHARS = "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯIЇЄ'абвгдежзийклмнопрстуфхцчшщъыьэюяiїє'";
     public static final int CHARS_NUM = CHARS.length() / 2;
-    private int[] index = null;
-
+    private int[] ch2iCache = null;
     private final Charset nioCharset;
-
 
     private CyrillicCharset(String nioCharsetName) {
         this.nioCharset = Charset.forName(nioCharsetName);
@@ -48,35 +46,33 @@ public enum CyrillicCharset {
      * @return index
      */
     public int charToIndex(byte b) {
-        if (index == null) {
-            index = createIndex();
+        if (ch2iCache == null) {
+            ch2iCache = createCharToIndexCache();
         }
 
-        return index[signToUnsign(b)];
+        return ch2iCache[signToUnsign(b)];
     }
 
-    private void memorizeAdditionalChars(Charset cs, int[] ind) {
+    private void memorizeAdditionalChars(Charset cs, int[] cache) {
         byte[] yo = "ёЁ".getBytes(cs);
-        ind[signToUnsign(yo[0])] = 5;
-        ind[signToUnsign(yo[1])] = 5;
+        cache[signToUnsign(yo[0])] = 5;
+        cache[signToUnsign(yo[1])] = 5;
     }
 
-    public int[] createIndex() {
+    public int[] createCharToIndexCache() {
         byte[] charsBytes = CHARS.getBytes(nioCharset);
-        int[] ind = new int[256];
+        int[] cache = new int[256];
         for (int i = 0; i < 256; i++) {
-            ind[i] = -1;
+            cache[i] = -1;
         }
 
         for (int i = 0; i < CHARS_NUM; i++) {
-            ind[signToUnsign(charsBytes[i])] = i;
-            ind[signToUnsign(charsBytes[i + CHARS_NUM])] = i;
+            cache[signToUnsign(charsBytes[i])] = i;
+            cache[signToUnsign(charsBytes[i + CHARS_NUM])] = i;
         }
 
-        memorizeAdditionalChars(nioCharset, ind);
+        memorizeAdditionalChars(nioCharset, cache);
 
-        return ind;
+        return cache;
     }
-
-
 }

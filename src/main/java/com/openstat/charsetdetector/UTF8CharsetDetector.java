@@ -17,50 +17,54 @@ package com.openstat.charsetdetector;
 
 import static com.openstat.charsetdetector.util.Util.signToUnsign;
 
+/**
+ * Using for recognise if a sequence of bytes is valid utf-8 sequence.
+ */
 public final class UTF8CharsetDetector {
 
     private UTF8CharsetDetector() {
     }
 
     /**
-     * Looks if bytes' bit format corresponds to UTF-8 specification (http://tools.ietf.org/html/rfc3629#section-3)
+     * Looks if bytes' bit format corresponds to UTF-8 specification 
+     * (http://tools.ietf.org/html/rfc3629#section-3)
      *
      * @param bytes array of bytes
      * @return if bytes are encoded UTF-8 string
      */
     public static boolean isUTF8(byte[] bytes) {
         try {
-        for (int i = 0; i < bytes.length;) {
-            byte b = bytes[i];
-            if (isSingleByteChar(b)) {
-                i++;
-            } else if (isDoubleByteCharHead(b)) {
-                i++;
-                if (!isCharTail(bytes[i])) {
+            for (int i = 0; i < bytes.length;) {
+                byte b = bytes[i];
+                if (isSingleByteChar(b)) {
+                    i++;
+                } else if (isDoubleByteCharHead(b)) {
+                    i++;
+                    if (!isCharTail(bytes[i])) {
+                        return false;
+                    }
+                    i++;
+                } else if (isTripleByteCharHead(b)) {
+                    i++;
+                    for (int j = 0; j < 2; j++) {
+                        if (!isCharTail(bytes[i])) {
+                            return false;
+                        }
+                        i++;
+                    }
+                } else if (isQuaternaryByteCharHead(b)) {
+                    i++;
+                    for (int j = 0; j < 3; j++) {
+                        if (!isCharTail(bytes[i])) {
+                            return false;
+                        }
+                        i++;
+                    }
+                } else {
                     return false;
                 }
-                i++;
-            } else if (isTripleByteCharHead(b)) {
-                i++;
-                for (int j = 0; j < 2; j++) {
-                    if (!isCharTail(bytes[i])) {
-                        return false;
-                    }
-                    i++;
-                }
-            } else if (isQuaternaryByteCharHead(b)) {
-                i++;
-                for (int j = 0; j < 3; j++) {
-                    if (!isCharTail(bytes[i])) {
-                        return false;
-                    }
-                    i++;
-                }
-            } else {
-                return false;
             }
-        }
-        return true;
+            return true;
         } catch (ArrayIndexOutOfBoundsException e) {
             return false;
         }
