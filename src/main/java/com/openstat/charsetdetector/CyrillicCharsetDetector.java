@@ -88,7 +88,7 @@ public final class CyrillicCharsetDetector {
         for (CyrillicCharset cs : CyrillicCharset.values()) {
             Stats stats = statsPerCharset.get(cs);
             // We go through all available 4-chars sequences 
-            // an look if they mathes some the patterns of digramm,
+            // and look if they mathes some the patterns of digramm,
             // trigramm and boundary trigramm.
             // 'A' = any cyrillic char (one or #CyrillicCharset.CHARS)
             // '^' = other chars (spaces, punctuation marks, numbers, latin chars etc)
