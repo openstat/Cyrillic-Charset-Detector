@@ -88,14 +88,14 @@ public final class CyrillicCharsetDetector {
         for (CyrillicCharset cs : CyrillicCharset.values()) {
             Stats stats = statsPerCharset.get(cs);
             // We go through all available 4-chars sequences 
-            // an look if they mathes some the patterns of digramm,
-            // trigramm and boundary trigramm.
+            // and look if they matches the patterns of digram,
+            // trigram or boundary trigram.
             // 'A' = any cyrillic char (one or #CyrillicCharset.CHARS)
             // '^' = other chars (spaces, punctuation marks, numbers, latin chars etc)
             // '*' = any char
             int index1;
-            // char index is its alfabetic number if it is a cyrillic char
-            // or -1 otherwice 
+            // Char index is its alfabetic number if it is a cyrillic char
+            // or -1 otherwise. 
             int index2 = cs.charToIndex(bytes[0]);
             int index3 = cs.charToIndex(bytes[1]);
             int index4 = cs.charToIndex(bytes[2]);

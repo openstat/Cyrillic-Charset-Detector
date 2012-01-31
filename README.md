@@ -26,7 +26,7 @@ This is the library for detecting cyrillic character sets that was used to encod
 
 It is optimized for detecting character sets of short phrases.
 
-Supported character sets are: `utf-8`, `win-1251`, `koi8-r`, `iso-8859-5`, `ibm855`.
+Supported character sets are: `utf-8`, `win-1251`, `koi8-r`, `koi8-u`, `ibm855`.
 
 Note that CharsetDetector class is non thread safe.
 
