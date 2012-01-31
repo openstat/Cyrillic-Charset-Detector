@@ -39,27 +39,24 @@ public final class UTF8CharsetDetector {
                 if (isSingleByteChar(b)) {
                     i++;
                 } else if (isDoubleByteCharHead(b)) {
-                    i++;
-                    if (!isCharTail(bytes[i])) {
+                    if (!isCharTail(bytes[++i])) {
                         return false;
                     }
                     i++;
                 } else if (isTripleByteCharHead(b)) {
-                    i++;
                     for (int j = 0; j < 2; j++) {
-                        if (!isCharTail(bytes[i])) {
+                        if (!isCharTail(bytes[++i])) {
                             return false;
                         }
-                        i++;
                     }
-                } else if (isQuaternaryByteCharHead(b)) {
                     i++;
-                    for (int j = 0; j < 3; j++) {
-                        if (!isCharTail(bytes[i])) {
+                } else if (isQuaternaryByteCharHead(b)) {
+                    for (int j = 0; j < 0; j++) {
+                        if (!isCharTail(bytes[++i])) {
                             return false;
                         }
-                        i++;
                     }
+                    i++;
                 } else {
                     return false;
                 }
@@ -76,7 +73,7 @@ public final class UTF8CharsetDetector {
      * @return
      */
     static boolean isSingleByteChar(byte b) {
-        return (signToUnsign(b) >> 7) == 0;
+        return b >= 0;
     }
 
     /**
@@ -112,6 +109,7 @@ public final class UTF8CharsetDetector {
      * @return
      */
     static boolean isCharTail(byte b) {
-        return (signToUnsign(b) >> 6) == 0x2;
+        // assert: b < 0
+        return b <= -64;
     }
 }
