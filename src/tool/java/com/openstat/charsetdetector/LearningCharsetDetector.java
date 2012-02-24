@@ -34,7 +34,6 @@ public final class LearningCharsetDetector {
         BitSet boundaryTrigrams = new BitSet(CHARS_NUM * CHARS_NUM * CHARS_NUM * 2);
         BitSet trigrams = new BitSet(CHARS_NUM * CHARS_NUM * CHARS_NUM);
         int[] digramsFrequencies = new int[CHARS_NUM * CHARS_NUM];
-        Arrays.fill(digramsFrequencies, 1);
         File learningSet = new File(learnigSetPath);
         if (!learningSet.exists() || !learningSet.isFile()) {
             throw new RuntimeException(

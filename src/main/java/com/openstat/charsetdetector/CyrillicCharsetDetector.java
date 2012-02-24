@@ -196,7 +196,8 @@ public final class CyrillicCharsetDetector {
 
     // assert index > 0
     private void collectFrequenciesStats(Stats stats, int index) {
-        stats.frequencies *= charFrequenciesTable[index];
+            stats.frequencies += charFrequenciesTable[index];
+
     }
 
     private static EnumMap<CyrillicCharset, Stats> createStats() {
